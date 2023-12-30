@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import QueryBuilder from '../../builder/QueryBuilder';
 import AppError from '../../errors/AppError';
+import EnrolledCourse from '../EnrolledCourse/enrolledCourse.model';
 import { User } from '../user/user.model';
 import { studentSearchableFields } from './student.constant';
 import { TStudent } from './student.interface';
@@ -230,9 +231,101 @@ const deleteStudentFromDB = async (id: string) => {
   }
 };
 
+const academicTranscript = async (id: string) => {
+  const isSudentExist = await EnrolledCourse.findOne({ student: id });
+
+  if (!isSudentExist) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Result not found!');
+  }
+
+  const result = await EnrolledCourse.aggregate([
+    {
+      $match: {
+        student: new mongoose.Types.ObjectId(id),
+        isCompleted: true,
+      },
+    },
+    {
+      $lookup: {
+        from: 'academicsemesters',
+        localField: 'academicSemester',
+        foreignField: '_id',
+        as: 'academicSemester',
+      },
+    },
+    {
+      $unwind: '$academicSemester',
+    },
+    {
+      $lookup: {
+        from: 'courses',
+        localField: 'course',
+        foreignField: '_id',
+        as: 'course',
+      },
+    },
+    {
+      $unwind: '$course',
+    },
+    {
+      $project: {
+        academicSemester: {
+          name: 1,
+          year: 1,
+        },
+        course: {
+          title: 1,
+          prefix: 1,
+          code: 1,
+        },
+        courseMarks: 1,
+        grade: 1,
+        gradePoints: 1,
+      },
+    },
+    {
+      $group: {
+        _id: '$academicSemester',
+        totalGradePoints: { $avg: '$gradePoints' },
+        courses: {
+          $push: {
+            course: '$course',
+            courseMarks: '$courseMarks',
+            grade: '$grade',
+            gradePoints: '$gradePoints',
+          },
+        },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCGPA: { $avg: '$totalGradePoints' },
+        resultPerSemester: {
+          $push: {
+            academicSemester: '$_id',
+            courses: '$courses',
+            totalGradePoints: '$totalGradePoints',
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        totalCGPA: { $round: ['$totalCGPA', 2] },
+        resultPerSemester: 1,
+      },
+    },
+  ]);
+
+  return result[0];
+};
+
 export const StudentServices = {
   getAllStudentsFromDB,
   getSingleStudentFromDB,
   updateStudentIntoDB,
   deleteStudentFromDB,
+  academicTranscript,
 };

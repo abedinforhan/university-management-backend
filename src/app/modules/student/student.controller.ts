@@ -52,9 +52,22 @@ const deleteStudent = catchAsync(async (req, res) => {
   });
 });
 
+const getAcademicTranscript = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await StudentServices.academicTranscript(id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Student is retrieved succesfully',
+    data: result,
+  });
+});
+
 export const StudentControllers = {
   getAllStudents,
   getSingleStudent,
   deleteStudent,
   updateStudent,
+  getAcademicTranscript,
 };

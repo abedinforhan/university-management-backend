@@ -212,7 +212,9 @@ const updateEnrolledCourseMarksIntoDB = async (
   }
 
   if (courseMarks && Object.keys(courseMarks).length) {
+    console.log(courseMarks);
     for (const [key, value] of Object.entries(courseMarks)) {
+      //console.log({ key, value });
       modifiedData[`courseMarks.${key}`] = value;
     }
   }
@@ -228,7 +230,136 @@ const updateEnrolledCourseMarksIntoDB = async (
   return result;
 };
 
+const enrolledCourseStudentAnalytics = async (
+  facultyId: string,
+  courseId: string,
+  semesterRegistrationId: string,
+) => {
+  const enrolledCourseStudentsAnalytic = await EnrolledCourse.aggregate([
+    {
+      $facet: {
+        gradeWise: [
+          {
+            $match: {
+              faculty: new mongoose.Types.ObjectId(facultyId),
+              course: new mongoose.Types.ObjectId(courseId),
+              semesterRegistration: new mongoose.Types.ObjectId(
+                semesterRegistrationId,
+              ),
+              isCompleted: true,
+            },
+          },
+          {
+            $lookup: {
+              from: 'courses',
+              localField: 'course',
+              foreignField: '_id',
+              as: 'course',
+            },
+          },
+          {
+            $unwind: '$course',
+          },
+          {
+            $group: {
+              _id: '$grade',
+              course: { $first: '$course' },
+              totalStudents: { $push: '$student' },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              course: {
+                title: 1,
+              },
+              grade: '$_id',
+              totalStudents: { $size: '$totalStudents' },
+            },
+          },
+        ],
+        gradePointsWise: [
+          {
+            $match: {
+              faculty: new mongoose.Types.ObjectId(facultyId),
+              course: new mongoose.Types.ObjectId(courseId),
+              isCompleted: true,
+            },
+          },
+          {
+            $lookup: {
+              from: 'courses',
+              localField: 'course',
+              foreignField: '_id',
+              as: 'course',
+            },
+          },
+          {
+            $unwind: '$course',
+          },
+          {
+            $group: {
+              _id: '$gradePoints',
+              course: { $first: '$course' },
+              totalStudents: { $push: '$student' },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              course: {
+                title: 1,
+              },
+              gradePoints: '$_id',
+              totalStudents: { $size: '$totalStudents' },
+            },
+          },
+        ],
+        coureCompletionWise: [
+          {
+            $match: {
+              faculty: new mongoose.Types.ObjectId(facultyId),
+              course: new mongoose.Types.ObjectId(courseId),
+              isCompleted: true,
+            },
+          },
+          {
+            $lookup: {
+              from: 'courses',
+              localField: 'course',
+              foreignField: '_id',
+              as: 'course',
+            },
+          },
+          {
+            $unwind: '$course',
+          },
+          {
+            $group: {
+              _id: '$isCompleted',
+              course: { $first: '$course' },
+              totalStudents: { $push: '$student' },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              course: {
+                title: 1,
+              },
+              totalStudents: { $size: '$totalStudents' },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return enrolledCourseStudentsAnalytic;
+};
+
 export const EnrolledCourseServices = {
   createEnrolledCourseIntoDB,
   updateEnrolledCourseMarksIntoDB,
+  enrolledCourseStudentAnalytics,
 };

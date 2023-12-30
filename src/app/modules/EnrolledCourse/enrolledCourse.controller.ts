@@ -32,8 +32,25 @@ const updateEnrolledCourseMarks = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const enrolledCourseStudentAnalytics = catchAsync(async (req, res) => {
+  // const facultyId = req.user.userId;
+  // const {  courseId } = req.params;
+  const { facultyId, courseId } = req.body;
+  const result = await EnrolledCourseServices.enrolledCourseStudentAnalytics(
+    facultyId,
+    courseId,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Enrolled Course Student Analytics',
+    data: result,
+  });
+});
 
 export const EnrolledCourseControllers = {
   createEnrolledCourse,
   updateEnrolledCourseMarks,
+  enrolledCourseStudentAnalytics,
 };

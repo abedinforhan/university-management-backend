@@ -1,11 +1,13 @@
 import httpStatus from 'http-status';
-import QueryBuilder from '../../builder/QueryBuilder';
 import AppError from '../../errors/AppError';
+import { TCourse, TFilteredCourse } from '../Course/course.interface';
 import { Course } from '../Course/course.model';
+import EnrolledCourse from '../EnrolledCourse/enrolledCourse.model';
 import { Faculty } from '../Faculty/faculty.model';
 import { AcademicDepartment } from '../academicDepartment/academicDepartment.model';
 import { AcademicFaculty } from '../academicFaculty/academicFaculty.model';
 import { SemesterRegistration } from '../semesterRegistration/semesterRegistration.model';
+import { Student } from '../student/student.model';
 import { TOfferedCourse } from './OfferedCourse.interface';
 import { OfferedCourse } from './OfferedCourse.model';
 import { hasTimeConflict } from './OfferedCourse.utils';
@@ -131,14 +133,64 @@ const createOfferedCourseIntoDB = async (payload: TOfferedCourse) => {
   return result;
 };
 
-const getAllOfferedCoursesFromDB = async (query: Record<string, unknown>) => {
-  const offeredCourseQuery = new QueryBuilder(OfferedCourse.find(), query)
-    .filter()
-    .sort()
-    .paginate()
-    .fields();
+const getAllOfferedCoursesFromDB = async (userId: string) => {
+  //get the current ongoing semester data
+  const currentOngoingRegisteredSemester = await SemesterRegistration.findOne({
+    status: 'ONGOING',
+  });
 
-  const result = await offeredCourseQuery.modelQuery;
+  if (!currentOngoingRegisteredSemester) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'There is no semester registration on ONGOING!',
+    );
+  }
+
+  // get the student info
+  const student = await Student.findOne({ id: userId });
+
+  // get all the offered courses for this current semester
+  const allOfferedCoursesForCurrentSemester = await OfferedCourse.find({
+    semesterRegistration: currentOngoingRegisteredSemester._id,
+  }).populate<{ course: TCourse }>({
+    path: 'course',
+    populate: {
+      path: 'preRequisiteCourses',
+    },
+  });
+
+  // get already enrolled course list in thiscurrent semester.
+  const alreadyEnrolledCourseIdsForCurrentSemester = (
+    await EnrolledCourse.find({
+      semesterRegistration: currentOngoingRegisteredSemester._id,
+      student: student?._id,
+      isEnrolled: true,
+    })
+  ).map((course) => course.course.toString());
+
+  //get the student completed courses Ids
+  const completedCoursesIds = (
+    await EnrolledCourse.find({ student: student?._id, isCompleted: true })
+  ).map((course) => course.course.toString());
+
+  const result = allOfferedCoursesForCurrentSemester
+    .filter((course) => {
+      const preRequisites = course.course.preRequisiteCourses;
+
+      if (preRequisites.length === 0) {
+        return true;
+      } else {
+        const preRequisiteIds = preRequisites.map((preRequisite) =>
+          preRequisite.course.toString(),
+        );
+        return preRequisiteIds.every((id) => completedCoursesIds.includes(id));
+      }
+    })
+    .filter((course) => {
+      const courseId = (course.course as TFilteredCourse)._id.toString();
+      return !alreadyEnrolledCourseIdsForCurrentSemester.includes(courseId);
+    });
+
   return result;
 };
 
@@ -179,7 +231,6 @@ const updateOfferedCourseIntoDB = async (
 
   const semesterRegistration = isOfferedCourseExists.semesterRegistration;
   // get the schedules of the faculties
-
 
   // Checking the status of the semester registration
   const semesterRegistrationStatus =

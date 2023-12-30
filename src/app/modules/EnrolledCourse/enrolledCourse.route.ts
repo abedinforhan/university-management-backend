@@ -24,4 +24,10 @@ router.patch(
   EnrolledCourseControllers.updateEnrolledCourseMarks,
 );
 
+router.get(
+  // '/student-analytics/:courseId',
+  '/student-analytics',
+  EnrolledCourseControllers.enrolledCourseStudentAnalytics,
+);
+
 export const EnrolledCourseRoutes = router;

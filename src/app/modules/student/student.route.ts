@@ -22,4 +22,10 @@ router.patch(
 
 router.delete('/:id', StudentControllers.deleteStudent);
 
+router.get(
+  '/academic-transcript/:id',
+  // auth('faculty'),
+  StudentControllers.getAcademicTranscript,
+);
+
 export const StudentRoutes = router;
