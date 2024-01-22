@@ -34,11 +34,12 @@ const updateEnrolledCourseMarks = catchAsync(async (req, res) => {
 });
 const enrolledCourseStudentAnalytics = catchAsync(async (req, res) => {
   // const facultyId = req.user.userId;
-  // const {  courseId } = req.params;
-  const { facultyId, courseId } = req.body;
+  // const {  courseId , semesterRegistrationId} = req.params;
+  const { facultyId, courseId, semesterRegistrationId } = req.body;
   const result = await EnrolledCourseServices.enrolledCourseStudentAnalytics(
     facultyId,
     courseId,
+    semesterRegistrationId,
   );
 
   sendResponse(res, {

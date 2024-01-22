@@ -159,7 +159,7 @@ const getAllOfferedCoursesFromDB = async (userId: string) => {
     },
   });
 
-  // get already enrolled course list in thiscurrent semester.
+  // get already enrolled course list in this current semester.
   const alreadyEnrolledCourseIdsForCurrentSemester = (
     await EnrolledCourse.find({
       semesterRegistration: currentOngoingRegisteredSemester._id,
