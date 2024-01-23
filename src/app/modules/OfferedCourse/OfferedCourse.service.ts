@@ -1,8 +1,6 @@
 import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
-import { TCourse, TFilteredCourse } from '../Course/course.interface';
 import { Course } from '../Course/course.model';
-import EnrolledCourse from '../EnrolledCourse/enrolledCourse.model';
 import { Faculty } from '../Faculty/faculty.model';
 import { AcademicDepartment } from '../academicDepartment/academicDepartment.model';
 import { AcademicFaculty } from '../academicFaculty/academicFaculty.model';
@@ -134,65 +132,191 @@ const createOfferedCourseIntoDB = async (payload: TOfferedCourse) => {
 };
 
 const getAllOfferedCoursesFromDB = async (userId: string) => {
-  //get the current ongoing semester data
+  // //get the current ongoing semester data
   const currentOngoingRegisteredSemester = await SemesterRegistration.findOne({
     status: 'ONGOING',
   });
-
   if (!currentOngoingRegisteredSemester) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'There is no semester registration on ONGOING!',
     );
   }
-
-  // get the student info
+  // // get the student info
   const student = await Student.findOne({ id: userId });
-
   // get all the offered courses for this current semester
-  const allOfferedCoursesForCurrentSemester = await OfferedCourse.find({
-    semesterRegistration: currentOngoingRegisteredSemester._id,
-  }).populate<{ course: TCourse }>({
-    path: 'course',
-    populate: {
-      path: 'preRequisiteCourses',
+  // const allOfferedCoursesForCurrentSemester = await OfferedCourse.find({
+  //   semesterRegistration: currentOngoingRegisteredSemester._id,
+  // }).populate<{ course: TCourse }>({
+  //   path: 'course',
+  //   populate: {
+  //     path: 'preRequisiteCourses',
+  //   },
+  // });
+  // // get already enrolled course list in this current semester.
+  // const alreadyEnrolledCourseIdsForCurrentSemester = (
+  //   await EnrolledCourse.find({
+  //     semesterRegistration: currentOngoingRegisteredSemester._id,
+  //     student: student?._id,
+  //     isEnrolled: true,
+  //   })
+  // ).map((course) => course.course.toString());
+  // //get the student completed courses Ids
+  // const completedCoursesIds = (
+  //   await EnrolledCourse.find({ student: student?._id, isCompleted: true })
+  // ).map((course) => course.course.toString());
+  // const result = allOfferedCoursesForCurrentSemester
+  //   .filter((course) => {
+  //     const preRequisites = course.course.preRequisiteCourses;
+  //     if (preRequisites.length === 0) {
+  //       return true;
+  //     } else {
+  //       const preRequisiteIds = preRequisites.map((preRequisite) =>
+  //         preRequisite.course.toString(),
+  //       );
+  //       return preRequisiteIds.every((id) => completedCoursesIds.includes(id));
+  //     }
+  //   })
+  //   .filter((course) => {
+  //     const courseId = (course.course as TFilteredCourse)._id.toString();
+  //     return !alreadyEnrolledCourseIdsForCurrentSemester.includes(courseId);
+  //   });
+  //  return result;
+
+  const result = await OfferedCourse.aggregate([
+    {
+      $match: {
+        semesterRegistration: currentOngoingRegisteredSemester._id,
+      },
     },
-  });
-
-  // get already enrolled course list in this current semester.
-  const alreadyEnrolledCourseIdsForCurrentSemester = (
-    await EnrolledCourse.find({
-      semesterRegistration: currentOngoingRegisteredSemester._id,
-      student: student?._id,
-      isEnrolled: true,
-    })
-  ).map((course) => course.course.toString());
-
-  //get the student completed courses Ids
-  const completedCoursesIds = (
-    await EnrolledCourse.find({ student: student?._id, isCompleted: true })
-  ).map((course) => course.course.toString());
-
-  const result = allOfferedCoursesForCurrentSemester
-    .filter((course) => {
-      const preRequisites = course.course.preRequisiteCourses;
-
-      if (preRequisites.length === 0) {
-        return true;
-      } else {
-        const preRequisiteIds = preRequisites.map((preRequisite) =>
-          preRequisite.course.toString(),
-        );
-        return preRequisiteIds.every((id) => completedCoursesIds.includes(id));
-      }
-    })
-    .filter((course) => {
-      const courseId = (course.course as TFilteredCourse)._id.toString();
-      return !alreadyEnrolledCourseIdsForCurrentSemester.includes(courseId);
-    });
+    {
+      $lookup: {
+        from: 'courses',
+        localField: 'course',
+        foreignField: '_id',
+        as: 'course',
+      },
+    },
+    {
+      $unwind: '$course',
+    },
+    {
+      $lookup: {
+        from: 'enrolledcourses',
+        let: { courseId: '$_id', studentId: student?._id },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  {
+                    $eq: [
+                      '$semesterRegistration',
+                      currentOngoingRegisteredSemester._id,
+                    ],
+                  },
+                  {
+                    $eq: ['$student', '$$studentId'],
+                  },
+                  { $eq: ['$isEnrolled', true] },
+                ],
+              },
+            },
+          },
+        ],
+        as: 'enrolledCourses',
+      },
+    },
+    {
+      $lookup: {
+        from: 'enrolledcourses',
+        let: { studentId: student?._id },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$student', '$$studentId'] },
+                  { $eq: ['$isCompleted', true] },
+                ],
+              },
+            },
+          },
+        ],
+        as: 'completedCourses',
+      },
+    },
+    {
+      $addFields: {
+        completedCoursesIds: {
+          $map: {
+            input: '$completedCourses',
+            as: 'completed',
+            in: '$$completed.course',
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        isPrerequisiteFulfilled: {
+          $or: [
+            { $eq: ['$course.preRequisiteCourses', []] },
+            {
+              $setIsSubset: [
+                '$course.preRequisiteCourses.course',
+                '$completedCoursesIds',
+              ],
+            },
+          ],
+        },
+        isAlreadyEnrolled: {
+          $in: [
+            '$course._id',
+            {
+              $map: {
+                input: '$enrolledCourses',
+                as: 'enroll',
+                in: '$$enroll.course',
+              },
+            },
+          ],
+        },
+      },
+    },
+    {
+      $match: {
+        isPrerequisiteFulfilled: true,
+        isAlreadyEnrolled: false,
+      },
+    },
+    {
+      $project: {
+        enrolledCourses: 0,
+        completedCourses: 0,
+        completedCoursesIds: 0,
+        isAlreadyEnrolled: 0,
+        isPrerequisiteFulfilled: 0,
+      },
+    },
+  ]);
 
   return result;
 };
+
+// const getAllOfferedCoursesFromDB = async (query: Record<string, unknown>) => {
+//   const offeredCourseQuery = new QueryBuilder(
+//     OfferedCourse.find().populate('course'),
+//     query,
+//   )
+//     .filter()
+//     .sort()
+//     .paginate()
+//     .fields();
+
+//   const result = await offeredCourseQuery.modelQuery;
+//   return result;
+// };
 
 const getSingleOfferedCourseFromDB = async (id: string) => {
   const offeredCourse = await OfferedCourse.findById(id);

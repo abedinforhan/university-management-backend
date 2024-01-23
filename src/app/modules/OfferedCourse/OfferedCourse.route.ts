@@ -8,11 +8,7 @@ const router = express.Router();
 
 router.get('/', auth('student'), OfferedCourseControllers.getAllOfferedCourses);
 
-router.get(
-  '/:id',
-
-  OfferedCourseControllers.getSingleOfferedCourses,
-);
+router.get('/:id', OfferedCourseControllers.getSingleOfferedCourses);
 
 router.post(
   '/create-offered-course',

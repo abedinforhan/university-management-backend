@@ -247,49 +247,49 @@ const totalFacultyAnalytics = async () => {
             },
           },
         ],
-        enrolledCourseWise: [
-          {
-            $lookup: {
-              from: 'enrolledcourses',
-              localField: '_id',
-              foreignField: 'faculty',
-              as: 'enrolledCourses',
-            },
-          },
-          {
-            $unwind: '$enrolledCourses',
-          },
-          {
-            $group: {
-              _id: '$enrolledCourses.course',
-              course: { $first: '$enrolledCourses.course' },
-              totalFaculties: { $push: '$_id' },
-            },
-          },
-          {
-            $lookup: {
-              from: 'courses',
-              localField: 'course',
-              foreignField: '_id',
-              as: 'course',
-            },
-          },
-          {
-            $unwind: '$course',
-          },
-          {
-            $project: {
-              _id: 0,
-              course: {
-                _id: '$course._id',
-                name: '$course.title',
-                prefix: '$course.prefix',
-                code: '$course.code',
-              },
-              totalFaculties: { $size: '$totalFaculties' },
-            },
-          },
-        ],
+        // enrolledCourseWise: [
+        //   {
+        //     $lookup: {
+        //       from: 'enrolledcourses',
+        //       localField: '_id',
+        //       foreignField: 'faculty',
+        //       as: 'enrolledCourses',
+        //     },
+        //   },
+        //   {
+        //     $unwind: '$enrolledCourses',
+        //   },
+        //   {
+        //     $group: {
+        //       _id: '$enrolledCourses.course',
+        //       course: { $first: '$enrolledCourses.course' },
+        //       totalFaculties: { $push: '$_id' },
+        //     },
+        //   },
+        //   {
+        //     $lookup: {
+        //       from: 'courses',
+        //       localField: 'course',
+        //       foreignField: '_id',
+        //       as: 'course',
+        //     },
+        //   },
+        //   {
+        //     $unwind: '$course',
+        //   },
+        //   {
+        //     $project: {
+        //       _id: 0,
+        //       course: {
+        //         _id: '$course._id',
+        //         name: '$course.title',
+        //         prefix: '$course.prefix',
+        //         code: '$course.code',
+        //       },
+        //       totalFaculties: { $size: '$totalFaculties' },
+        //     },
+        //   },
+        // ],
       },
     },
   ]);
