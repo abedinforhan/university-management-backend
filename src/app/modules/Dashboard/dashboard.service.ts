@@ -1,10 +1,10 @@
+import { AcademicDepartment } from '../AcademicDepartment/academicDepartment.model';
+import { AcademicFaculty } from '../AcademicFaculty/academicFaculty.model';
 import { Admin } from '../Admin/admin.model';
 import EnrolledCourse from '../EnrolledCourse/enrolledCourse.model';
 import { Faculty } from '../Faculty/faculty.model';
-import { AcademicDepartment } from '../academicDepartment/academicDepartment.model';
-import { AcademicFaculty } from '../academicFaculty/academicFaculty.model';
-import { SemesterRegistration } from '../semesterRegistration/semesterRegistration.model';
-import { Student } from '../student/student.model';
+import { SemesterRegistration } from '../SemesterRegistration/semesterRegistration.model';
+import { Student } from '../Student/student.model';
 
 const totalAnalytics = async () => {
   const totalStudents = await Student.countDocuments();
@@ -247,49 +247,6 @@ const totalFacultyAnalytics = async () => {
             },
           },
         ],
-        // enrolledCourseWise: [
-        //   {
-        //     $lookup: {
-        //       from: 'enrolledcourses',
-        //       localField: '_id',
-        //       foreignField: 'faculty',
-        //       as: 'enrolledCourses',
-        //     },
-        //   },
-        //   {
-        //     $unwind: '$enrolledCourses',
-        //   },
-        //   {
-        //     $group: {
-        //       _id: '$enrolledCourses.course',
-        //       course: { $first: '$enrolledCourses.course' },
-        //       totalFaculties: { $push: '$_id' },
-        //     },
-        //   },
-        //   {
-        //     $lookup: {
-        //       from: 'courses',
-        //       localField: 'course',
-        //       foreignField: '_id',
-        //       as: 'course',
-        //     },
-        //   },
-        //   {
-        //     $unwind: '$course',
-        //   },
-        //   {
-        //     $project: {
-        //       _id: 0,
-        //       course: {
-        //         _id: '$course._id',
-        //         name: '$course.title',
-        //         prefix: '$course.prefix',
-        //         code: '$course.code',
-        //       },
-        //       totalFaculties: { $size: '$totalFaculties' },
-        //     },
-        //   },
-        // ],
       },
     },
   ]);

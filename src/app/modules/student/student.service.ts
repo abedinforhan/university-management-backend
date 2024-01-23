@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import QueryBuilder from '../../builder/QueryBuilder';
 import AppError from '../../errors/AppError';
 import EnrolledCourse from '../EnrolledCourse/enrolledCourse.model';
-import { User } from '../user/user.model';
+import { User } from '../User/user.model';
 import { studentSearchableFields } from './student.constant';
 import { TStudent } from './student.interface';
 import { Student } from './student.model';
@@ -286,7 +286,7 @@ const academicTranscript = async (id: string) => {
     {
       $group: {
         _id: '$academicSemester',
-        totalGradePoints: { $avg: '$gradePoints' },
+        totalGradePointsAverage: { $avg: '$gradePoints' },
         courses: {
           $push: {
             course: '$course',

@@ -14,6 +14,7 @@ const totalAnalytics = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
 const enrolledSemesterAnalytics = catchAsync(
   async (req: Request, res: Response) => {
     const result = await DashboardServices.enrolledSemesterAnalytics();

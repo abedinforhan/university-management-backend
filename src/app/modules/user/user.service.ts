@@ -5,26 +5,22 @@ import mongoose from 'mongoose';
 import config from '../../config';
 import AppError from '../../errors/AppError';
 import { sendImageToCloudinary } from '../../utils/sendImageToCloudinary';
+import { AcademicDepartment } from '../AcademicDepartment/academicDepartment.model';
+import { AcademicSemester } from '../AcademicSemester/academicSemester.model';
 import { TAdmin } from '../Admin/admin.interface';
 import { Admin } from '../Admin/admin.model';
 import { TFaculty } from '../Faculty/faculty.interface';
 import { Faculty } from '../Faculty/faculty.model';
-import { AcademicDepartment } from '../academicDepartment/academicDepartment.model';
-import { TStudent } from '../student/student.interface';
-import { Student } from '../student/student.model';
-import { AcademicSemester } from './../academicSemester/academicSemester.model';
+import { TStudent } from '../Student/student.interface';
+import { Student } from '../Student/student.model';
 import { TUser } from './user.interface';
 import { User } from './user.model';
-import {
-  generateAdminId,
-  generateFacultyId,
-  generateStudentId,
-} from './user.utils';
+import { generateFacultyId, generateStudentId } from './user.utils';
 
 const createStudentIntoDB = async (
-  file: any,
   password: string,
   payload: TStudent,
+  file: any,
 ) => {
   // create a user object
   const userData: Partial<TUser> = {};
@@ -53,11 +49,6 @@ const createStudentIntoDB = async (
     //set  generated id
     userData.id = await generateStudentId(admissionSemester);
 
-    const imageName = `${userData.id}${payload?.name?.firstName}`;
-    const path = file?.path;
-    //send image to cloudinary
-    const { secure_url } = await sendImageToCloudinary(imageName, path);
-
     // create a user (transaction-1)
     const newUser = await User.create([userData], { session }); // array
 
@@ -68,7 +59,13 @@ const createStudentIntoDB = async (
     // set id , _id as user
     payload.id = newUser[0].id;
     payload.user = newUser[0]._id; //reference _id
-    payload.profileImg = secure_url;
+    if (file) {
+      const imageName = `${userData.id}${payload?.name?.firstName}`;
+      const path = file?.path;
+      //send image to cloudinary
+      const { secure_url } = await sendImageToCloudinary(imageName, path);
+      payload.profileImg = secure_url as string;
+    }
 
     // create a student (transaction-2)
 
